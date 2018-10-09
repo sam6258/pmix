@@ -100,6 +100,18 @@ static void dummy_timeout_cb(int fd, short args, void *cbdata)
 /*
  * Main for the progress thread
  */
+static void* progress_engine_scott(pmix_object_t *obj)
+{
+    pmix_thread_t *t = (pmix_thread_t*)obj;
+    pmix_progress_tracker_t *trk = (pmix_progress_tracker_t*)t->t_arg;
+
+    while (trk->ev_active) {
+        pmix_event_loop(trk->ev_base, PMIX_EVLOOP_ONCE);
+	usleep(800000);
+    }
+
+    return PMIX_THREAD_CANCELLED;
+}
 static void* progress_engine(pmix_object_t *obj)
 {
     pmix_thread_t *t = (pmix_thread_t*)obj;
@@ -124,6 +136,22 @@ static void stop_progress_engine(pmix_progress_tracker_t *trk)
     pmix_thread_join(&trk->engine, NULL);
 }
 
+static int start_progress_engine_scott(pmix_progress_tracker_t *trk)
+{
+    assert(!trk->ev_active);
+    trk->ev_active = true;
+
+    /* fork off a thread to progress it */
+    trk->engine.t_run = progress_engine_scott;
+    trk->engine.t_arg = trk;
+
+    int rc = pmix_thread_start_scott(&trk->engine);
+    if (PMIX_SUCCESS != rc) {
+        PMIX_ERROR_LOG(rc);
+    }
+
+    return rc;
+}
 static int start_progress_engine(pmix_progress_tracker_t *trk)
 {
     assert(!trk->ev_active);
@@ -141,6 +169,67 @@ static int start_progress_engine(pmix_progress_tracker_t *trk)
     return rc;
 }
 
+pmix_event_base_t *pmix_progress_thread_init_scott(const char *name)
+{
+    pmix_progress_tracker_t *trk;
+    int rc;
+
+    if (!inited) {
+        PMIX_CONSTRUCT(&tracking, pmix_list_t);
+        inited = true;
+    }
+
+    if (NULL == name) {
+        name = shared_thread_name;
+    }
+
+    /* check if we already have this thread */
+    PMIX_LIST_FOREACH(trk, &tracking, pmix_progress_tracker_t) {
+        if (0 == strcmp(name, trk->name)) {
+            /* we do, so up the refcount on it */
+            ++trk->refcount;
+            /* return the existing base */
+            return trk->ev_base;
+        }
+    }
+
+    trk = PMIX_NEW(pmix_progress_tracker_t);
+    if (NULL == trk) {
+        PMIX_ERROR_LOG(PMIX_ERR_OUT_OF_RESOURCE);
+        return NULL;
+    }
+
+    trk->name = strdup(name);
+    if (NULL == trk->name) {
+        PMIX_ERROR_LOG(PMIX_ERR_OUT_OF_RESOURCE);
+        PMIX_RELEASE(trk);
+        return NULL;
+    }
+
+    if (NULL == (trk->ev_base = pmix_event_base_create())) {
+        PMIX_ERROR_LOG(PMIX_ERR_OUT_OF_RESOURCE);
+        PMIX_RELEASE(trk);
+        return NULL;
+    }
+
+    /* add an event to the new event base (if there are no events,
+       pmix_event_loop() will return immediately) */
+    pmix_event_assign(&trk->block, trk->ev_base, -1, PMIX_EV_PERSIST,
+                   dummy_timeout_cb, trk);
+    pmix_event_add(&trk->block, &long_timeout);
+
+    /* construct the thread object */
+    PMIX_CONSTRUCT(&trk->engine, pmix_thread_t);
+    trk->engine_constructed = true;
+    if (PMIX_SUCCESS != (rc = start_progress_engine_scott(trk))) {
+        PMIX_ERROR_LOG(rc);
+        PMIX_RELEASE(trk);
+        return NULL;
+    }
+    pmix_list_append(&tracking, &trk->super);
+
+    return trk->ev_base;
+}
 pmix_event_base_t *pmix_progress_thread_init(const char *name)
 {
     pmix_progress_tracker_t *trk;

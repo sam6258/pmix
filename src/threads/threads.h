@@ -193,6 +193,7 @@ typedef struct {
 
 
 PMIX_EXPORT int  pmix_thread_start(pmix_thread_t *);
+PMIX_EXPORT int  pmix_thread_start_scott(pmix_thread_t *);
 PMIX_EXPORT int  pmix_thread_join(pmix_thread_t *, void **thread_return);
 PMIX_EXPORT bool pmix_thread_self_compare(pmix_thread_t*);
 PMIX_EXPORT pmix_thread_t *pmix_thread_get_self(void);

@@ -144,9 +144,13 @@ pmix_status_t pmix_ptl_base_recv_blocking(int sd, char *data, size_t size)
             if (EAGAIN == pmix_socket_errno ||
                 EWOULDBLOCK == pmix_socket_errno) {
                 /* just cycle and let it try again */
-                pmix_output_verbose(8, pmix_ptl_base_framework.framework_output,
-                                    "blocking_recv received error %d:%s from remote - cycling",
-                                    pmix_socket_errno, strerror(pmix_socket_errno));
+
+		    if( NULL != getenv("SCOTT_BE_NOISY") ) {
+			    pmix_output(0, 
+					    "blocking_recv received error %d:%s from remote - cycling",
+					    pmix_socket_errno, strerror(pmix_socket_errno));
+		    }
+
                 return PMIX_ERR_TEMP_UNAVAILABLE;
             }
             if (pmix_socket_errno != EINTR ) {

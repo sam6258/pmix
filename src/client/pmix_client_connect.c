@@ -120,7 +120,7 @@ PMIX_EXPORT pmix_status_t PMIx_Connect_nb(const pmix_proc_t procs[], size_t npro
 
     PMIX_ACQUIRE_THREAD(&pmix_global_lock);
 
-    pmix_output_verbose(2, pmix_globals.debug_output,
+    pmix_output(0, 
                         "pmix: connect called");
 
     if (pmix_globals.init_cntr <= 0) {

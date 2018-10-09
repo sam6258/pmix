@@ -60,6 +60,17 @@
 static void* listen_thread(void *obj);
 static pthread_t engine;
 static bool setup_complete = false;
+static double my_wtime(void);
+static double my_wtime(void) {
+        double wtime = 0;
+        struct timespec tp;
+
+        if( 0 == clock_gettime(CLOCK_MONOTONIC, &tp) ) {
+                wtime = (tp.tv_sec * 1e6 + tp.tv_nsec/1000);
+        }
+
+        return wtime / 1000000.0;
+}
 
 /* Cycle across all available plugins and provide them with
  * an opportunity to register rendezvous points (server-side
@@ -192,6 +203,8 @@ static void* listen_thread(void *obj)
     pmix_output_verbose(8, pmix_ptl_base_framework.framework_output,
                         "listen_thread: active");
 
+	double time0 = 0;
+	double time1 = 0;
 
     while (pmix_ptl_globals.listen_thread_active) {
         FD_ZERO(&readfds);
@@ -253,9 +266,17 @@ static void* listen_thread(void *obj)
                 pending_connection->ptl = lt->ptl;
                 pmix_event_assign(&pending_connection->ev, pmix_globals.evbase, -1,
                                   EV_WRITE, lt->cbfunc, pending_connection);
+	
+		time0 = my_wtime();
+		
+		FILE * my_fd = fopen("/gpfs/wscgpfs02/smill/init_perf/timing.txt", "a");
+		//pmix_output(0, "time0 - time1 = %f, time0 = %f, time1 = %f", time0 - time1, time0, time1);
+		fprintf(my_fd, "time0 - time1 = %f, time0 = %f, time1 = %f\n", time0 - time1, time0, time1);
+		fclose(my_fd);
                 pending_connection->sd = accept(lt->socket,
                                                 (struct sockaddr*)&(pending_connection->addr),
                                                 &addrlen);
+		time1 = my_wtime();
                 if (pending_connection->sd < 0) {
                     PMIX_RELEASE(pending_connection);
                     if (pmix_socket_errno != EAGAIN ||

@@ -1129,7 +1129,7 @@ pmix_status_t pmix_server_connect(pmix_server_caddy_t *cd,
     pmix_server_trkr_t *trk;
     pmix_cmd_t type = PMIX_CONNECTNB_CMD;
 
-    pmix_output_verbose(2, pmix_globals.debug_output,
+    pmix_output(0, 
                         "recvd CONNECT from peer %s:%d",
                         cd->peer->info->pname.nspace,
                         cd->peer->info->pname.rank);

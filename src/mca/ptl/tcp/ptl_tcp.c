@@ -23,6 +23,7 @@
  */
 
 #include <src/include/pmix_config.h>
+#include <assert.h>
 
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
@@ -78,6 +79,18 @@ pmix_ptl_module_t pmix_ptl_tcp_module = {
 
 static pmix_status_t recv_connect_ack(int sd);
 static pmix_status_t send_connect_ack(int sd);
+
+static double my_wtime(void);
+static double my_wtime(void) {
+        double wtime = 0;
+        struct timespec tp;
+
+        if( 0 == clock_gettime(CLOCK_MONOTONIC, &tp) ) {
+                wtime = (tp.tv_sec * 1e6 + tp.tv_nsec/1000);
+        }
+
+        return wtime / 1000000.0;
+}
 
 
 static pmix_status_t init(void)
@@ -661,12 +674,21 @@ static pmix_status_t try_connect(int *sd)
     }
     free(p);
 
+    double time0;
+    double time1;
+    double time2;
+    double time3;
+
   retry:
+
+    time0 = my_wtime();
+
     /* establish the connection */
     if (PMIX_SUCCESS != (rc = pmix_ptl_base_connect(&mca_ptl_tcp_component.connection, len, sd))) {
         PMIX_ERROR_LOG(rc);
         return rc;
     }
+    time1 = my_wtime();
 
     /* send our identity and any authentication credentials to the server */
     if (PMIX_SUCCESS != (rc = send_connect_ack(*sd))) {
@@ -674,6 +696,7 @@ static pmix_status_t try_connect(int *sd)
         CLOSE_THE_SOCKET(*sd);
         return rc;
     }
+    time2 = my_wtime();
 
     /* do whatever handshake is required */
     if (PMIX_SUCCESS != (rc = recv_connect_ack(*sd))) {
@@ -682,12 +705,21 @@ static pmix_status_t try_connect(int *sd)
             /* give it two tries */
             if (!retried) {
                 retried = true;
+
+		if( NULL != getenv("SCOTT_BE_NOISY") ) {
+			pmix_output(0, "SCOTT Retry");
+			assert(0);
+		}
+
                 goto retry;
             }
         }
         PMIX_ERROR_LOG(rc);
         return rc;
     }
+    time3 = my_wtime();
+    //pmix_output(0, "time0 = %f, time1 = %f, time2 = %f time3 = %f", time0, time1, time2, time3);
+    //pmix_output(0, "time1 - time0 = %f, time2 - time1 = %f, time3 - time2 = %f", time1 - time0, time2 - time1, time3 - time2);
 
     return PMIX_SUCCESS;
 }
@@ -864,6 +896,7 @@ static pmix_status_t recv_connect_ack(int sd)
     pmix_output_verbose(2, pmix_ptl_base_framework.framework_output,
                         "pmix: RECV CONNECT ACK FROM SERVER");
 
+
     /* get the current timeout value so we can reset to it */
     sz = sizeof(save);
     if (0 != getsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, (void*)&save, &sz)) {
@@ -916,6 +949,7 @@ static pmix_status_t recv_connect_ack(int sd)
         }
         pmix_globals.pindex = ntohl(u32);
     } else {  // we are a tool
+	pmix_output(0, "I AM A TOOL"); 
         /* if the status indicates an error, then we are done */
         if (PMIX_SUCCESS != reply) {
             PMIX_ERROR_LOG(reply);

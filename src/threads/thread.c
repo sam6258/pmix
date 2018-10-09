@@ -54,6 +54,21 @@ static void pmix_thread_construct(pmix_thread_t *t)
     t->t_handle = (pthread_t) -1;
 }
 
+int pmix_thread_start_scott(pmix_thread_t *t)
+{
+    int rc;
+
+    if (PMIX_ENABLE_DEBUG) {
+        if (NULL == t->t_run || t->t_handle != (pthread_t) -1) {
+            return PMIX_ERR_BAD_PARAM;
+        }
+    }
+
+    rc = pthread_create(&t->t_handle, NULL, (void*(*)(void*)) t->t_run, t);
+
+    return (rc == 0) ? PMIX_SUCCESS : PMIX_ERROR;
+}
+
 int pmix_thread_start(pmix_thread_t *t)
 {
     int rc;
