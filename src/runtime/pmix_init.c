@@ -78,7 +78,7 @@ PMIX_EXPORT pmix_globals_t pmix_globals = {
 };
 
 
-int pmix_rte_init(pmix_proc_type_t type,
+int pmix_rte_init_server(pmix_proc_type_t type,
                   pmix_info_t info[], size_t ninfo,
                   pmix_ptl_cbfunc_t cbfunc)
 {
@@ -211,6 +211,216 @@ int pmix_rte_init(pmix_proc_type_t type,
     }
     if( PMIX_SUCCESS != (ret = pmix_ptl_base_select()) ) {
         error = "pmix_ptl_base_select";
+        goto return_error;
+    }
+    /* set the notification callback function */
+    if (PMIX_SUCCESS != (ret = pmix_ptl_base_set_notification_cbfunc(cbfunc))) {
+        error = "pmix_ptl_set_notification_cbfunc";
+        goto return_error;
+    }
+
+    /* open the psec and select the active plugins */
+    if (PMIX_SUCCESS != (ret = pmix_mca_base_framework_open(&pmix_psec_base_framework, 0))) {
+        error = "pmix_psec_base_open";
+        goto return_error;
+    }
+    if (PMIX_SUCCESS != (ret = pmix_psec_base_select())) {
+        error = "pmix_psec_base_select";
+        goto return_error;
+    }
+
+    /* open the gds and select the active plugins */
+    if( PMIX_SUCCESS != (ret = pmix_mca_base_framework_open(&pmix_gds_base_framework, 0)) ) {
+        error = "pmix_gds_base_open";
+        goto return_error;
+    }
+    if( PMIX_SUCCESS != (ret = pmix_gds_base_select(info, ninfo)) ) {
+        error = "pmix_gds_base_select";
+        goto return_error;
+    }
+
+    /* initialize pif framework */
+    if (PMIX_SUCCESS != (ret = pmix_mca_base_framework_open(&pmix_pif_base_framework, 0))) {
+        error = "pmix_pif_base_open";
+        return ret;
+    }
+
+    /* open the pnet and select the active modules for this environment */
+    if (PMIX_SUCCESS != (ret = pmix_mca_base_framework_open(&pmix_pnet_base_framework, 0))) {
+        error = "pmix_pnet_base_open";
+        goto return_error;
+    }
+    if (PMIX_SUCCESS != (ret = pmix_pnet_base_select())) {
+        error = "pmix_pnet_base_select";
+        goto return_error;
+    }
+
+    /* open the preg and select the active plugins */
+    if( PMIX_SUCCESS != (ret = pmix_mca_base_framework_open(&pmix_preg_base_framework, 0)) ) {
+        error = "pmix_preg_base_open";
+        goto return_error;
+    }
+    if( PMIX_SUCCESS != (ret = pmix_preg_base_select()) ) {
+        error = "pmix_preg_base_select";
+        goto return_error;
+    }
+
+    /* if an external event base wasn't provide, create one */
+    if (!pmix_globals.external_evbase) {
+        /* tell libevent that we need thread support */
+        pmix_event_use_threads();
+
+        /* create an event base and progress thread for us */
+        if (NULL == (pmix_globals.evbase = pmix_progress_thread_init(NULL))) {
+            error = "progress thread";
+            ret = PMIX_ERROR;
+            goto return_error;
+        }
+    }
+
+    return PMIX_SUCCESS;
+
+  return_error:
+    if (PMIX_ERR_SILENT != ret) {
+        pmix_show_help( "help-pmix-runtime.txt",
+                        "pmix_init:startup:internal-failure", true,
+                        error, ret );
+    }
+    return ret;
+}
+int pmix_rte_init(pmix_proc_type_t type,
+                  pmix_info_t info[], size_t ninfo,
+                  pmix_ptl_cbfunc_t cbfunc)
+{
+    int ret, debug_level;
+    char *error = NULL, *evar;
+    size_t n;
+
+    if( ++pmix_initialized != 1 ) {
+        if( pmix_initialized < 1 ) {
+            return PMIX_ERROR;
+        }
+        return PMIX_SUCCESS;
+    }
+
+    #if PMIX_NO_LIB_DESTRUCTOR
+        if (pmix_init_called) {
+            /* can't use show_help here */
+            fprintf (stderr, "pmix_init: attempted to initialize after finalize without compiler "
+                     "support for either __attribute__(destructor) or linker support for -fini -- process "
+                     "will likely abort\n");
+            return PMIX_ERR_NOT_SUPPORTED;
+        }
+    #endif
+
+    pmix_init_called = true;
+
+    /* initialize the output system */
+    if (!pmix_output_init()) {
+        return PMIX_ERROR;
+    }
+
+    /* initialize install dirs code */
+    if (PMIX_SUCCESS != (ret = pmix_mca_base_framework_open(&pmix_pinstalldirs_base_framework, 0))) {
+        fprintf(stderr, "pmix_pinstalldirs_base_open() failed -- process will likely abort (%s:%d, returned %d instead of PMIX_SUCCESS)\n",
+                __FILE__, __LINE__, ret);
+        return ret;
+    }
+
+    /* initialize the help system */
+    pmix_show_help_init();
+
+    /* keyval lex-based parser */
+    if (PMIX_SUCCESS != (ret = pmix_util_keyval_parse_init())) {
+        error = "pmix_util_keyval_parse_init";
+        goto return_error;
+    }
+
+    /* Setup the parameter system */
+    if (PMIX_SUCCESS != (ret = pmix_mca_base_var_init())) {
+        error = "mca_base_var_init";
+        goto return_error;
+    }
+
+    /* register params for pmix */
+    if (PMIX_SUCCESS != (ret = pmix_register_params())) {
+        error = "pmix_register_params";
+        goto return_error;
+    }
+
+    /* initialize the mca */
+    if (PMIX_SUCCESS != (ret = pmix_mca_base_open())) {
+        error = "mca_base_open";
+        goto return_error;
+    }
+
+    /* setup the globals structure */
+    memset(&pmix_globals.myid, 0, sizeof(pmix_proc_t));
+    PMIX_CONSTRUCT(&pmix_globals.events, pmix_events_t);
+    pmix_globals.event_window.tv_sec = pmix_event_caching_window;
+    pmix_globals.event_window.tv_usec = 0;
+    PMIX_CONSTRUCT(&pmix_globals.cached_events, pmix_list_t);
+    /* construct the global notification ring buffer */
+    PMIX_CONSTRUCT(&pmix_globals.notifications, pmix_ring_buffer_t);
+    pmix_ring_buffer_init(&pmix_globals.notifications, 256);
+
+    /* get our effective id's */
+    pmix_globals.uid = geteuid();
+    pmix_globals.gid = getegid();
+    /* see if debug is requested */
+    if (NULL != (evar = getenv("PMIX_DEBUG"))) {
+        debug_level = strtol(evar, NULL, 10);
+        pmix_globals.debug_output = pmix_output_open(NULL);
+        pmix_output_set_verbosity(pmix_globals.debug_output, debug_level);
+    }
+    /* create our peer object */
+    pmix_globals.mypeer = PMIX_NEW(pmix_peer_t);
+    if (NULL == pmix_globals.mypeer) {
+        ret = PMIX_ERR_NOMEM;
+        goto return_error;
+    }
+    /* whatever our declared proc type, we are definitely v2.1 */
+    pmix_globals.mypeer->proc_type = type | PMIX_PROC_V21;
+    /* create an nspace object for ourselves - we will
+     * fill in the nspace name later */
+    pmix_globals.mypeer->nptr = PMIX_NEW(pmix_nspace_t);
+    if (NULL == pmix_globals.mypeer->nptr) {
+        PMIX_RELEASE(pmix_globals.mypeer);
+        ret = PMIX_ERR_NOMEM;
+        goto return_error;
+    }
+
+    /* scan incoming info for directives */
+    if (NULL != info) {
+        for (n=0; n < ninfo; n++) {
+            if (0 == strcmp(PMIX_EVENT_BASE, info[n].key)) {
+                pmix_globals.evbase = (pmix_event_base_t*)info[n].value.data.ptr;
+                pmix_globals.external_evbase = true;
+            }
+        }
+    }
+
+    /* the choice of modules to use when communicating with a peer
+     * will be done by the individual init functions and at the
+     * time of connection to that peer */
+
+    /* open the bfrops and select the active plugins */
+    if( PMIX_SUCCESS != (ret = pmix_mca_base_framework_open(&pmix_bfrops_base_framework, 0)) ) {
+        error = "pmix_bfrops_base_open";
+        goto return_error;
+    }
+    if( PMIX_SUCCESS != (ret = pmix_bfrop_base_select()) ) {
+        error = "pmix_bfrops_base_select";
+        goto return_error;
+    }
+
+    /* open the ptl and select the active plugins */
+    if( PMIX_SUCCESS != (ret = pmix_mca_base_framework_open(&pmix_ptl_base_framework, 0)) ) {
+        error = "pmix_ptl_base_open";
+        goto return_error;
+    }
+    if( PMIX_SUCCESS != (ret = pmix_ptl_base_select_scott()) ) {
+        error = "pmix_ptl_base_select_scott";
         goto return_error;
     }
     /* set the notification callback function */

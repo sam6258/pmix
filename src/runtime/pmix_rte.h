@@ -59,6 +59,9 @@ extern const char pmix_version_string[];
  * @retval PMIX_ERROR Upon failure.
  *
  */
+PMIX_EXPORT pmix_status_t pmix_rte_init_server(pmix_proc_type_t type,
+                                        pmix_info_t info[], size_t ninfo,
+                                        pmix_ptl_cbfunc_t cbfunc);
 PMIX_EXPORT pmix_status_t pmix_rte_init(pmix_proc_type_t type,
                                         pmix_info_t info[], size_t ninfo,
                                         pmix_ptl_cbfunc_t cbfunc);

@@ -83,6 +83,30 @@ pmix_ptl_module_t* pmix_ptl_base_assign_module(void)
     return active->module;
 }
 
+pmix_status_t pmix_ptl_base_connect_to_peer_scott(struct pmix_peer_t *peer,
+                                            pmix_info_t info[], size_t ninfo)
+{
+    pmix_peer_t *pr = (pmix_peer_t*)peer;
+    pmix_ptl_base_active_t *active;
+    int first = 1;
+
+    PMIX_LIST_FOREACH(active, &pmix_ptl_globals.actives, pmix_ptl_base_active_t) {
+        if (NULL != active->module->connect_to_peer) {
+		if (first) {
+			first = 0;
+			continue;
+		}
+		if (PMIX_SUCCESS == active->module->connect_to_peer(peer, info, ninfo)) {
+			pr->nptr->compat.ptl = active->module;
+			return PMIX_SUCCESS;
+		}
+        }
+    }
+
+    pmix_output(0, "return unreach from %s", __func__);
+
+    return PMIX_ERR_UNREACH;
+}
 pmix_status_t pmix_ptl_base_connect_to_peer(struct pmix_peer_t *peer,
                                             pmix_info_t info[], size_t ninfo)
 {
@@ -90,13 +114,15 @@ pmix_status_t pmix_ptl_base_connect_to_peer(struct pmix_peer_t *peer,
     pmix_ptl_base_active_t *active;
 
     PMIX_LIST_FOREACH(active, &pmix_ptl_globals.actives, pmix_ptl_base_active_t) {
-        if (NULL != active->module->connect_to_peer) {
-            if (PMIX_SUCCESS == active->module->connect_to_peer(peer, info, ninfo)) {
-                pr->nptr->compat.ptl = active->module;
-                return PMIX_SUCCESS;
-            }
-        }
+	    if (NULL != active->module->connect_to_peer) {
+		    if (PMIX_SUCCESS == active->module->connect_to_peer(peer, info, ninfo)) {
+			    pr->nptr->compat.ptl = active->module;
+			    return PMIX_SUCCESS;
+		    }
+	    }
     }
+
+    pmix_output(0, "return unreach from %s", __func__);
 
     return PMIX_ERR_UNREACH;
 }

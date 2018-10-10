@@ -314,6 +314,7 @@ static pmix_status_t setup_listener(pmix_info_t info[], size_t ninfo,
     pmix_output_verbose(2, pmix_ptl_base_framework.framework_output,
                         "ptl:tcp setup_listener");
 
+    //return PMIX_ERR_NOT_SUPPORTED;
     /* if we are not a server, then we shouldn't be doing this */
     if (!PMIX_PROC_IS_SERVER(pmix_globals.mypeer)) {
         return PMIX_ERR_NOT_SUPPORTED;

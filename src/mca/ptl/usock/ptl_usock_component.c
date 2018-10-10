@@ -338,6 +338,7 @@ static void connection_handler(int sd, short args, void *cbdata)
 {
     pmix_pending_connection_t *pnd = (pmix_pending_connection_t*)cbdata;
     char *msg, *ptr, *nspace, *version, *cred, *sec, *bfrops, *gds;
+    //cred = NULL;
     pmix_status_t rc;
     unsigned int rank;
     pmix_usock_hdr_t hdr;
@@ -357,7 +358,7 @@ static void connection_handler(int sd, short args, void *cbdata)
     /* acquire the object */
     PMIX_ACQUIRE_OBJECT(pnd);
 
-    pmix_output_verbose(2, pmix_ptl_base_framework.framework_output,
+    pmix_output(0,
                         "USOCK CONNECTION FROM PEER ON SOCKET %d", pnd->sd);
 
     /* ensure all is zero'd */
@@ -451,7 +452,7 @@ static void connection_handler(int sd, short args, void *cbdata)
     }
 
     /* get any provided credential */
-    if (1 == major || (2 == major && 0 == minor)) {
+    if (1 == major || (2 == major && 0 == minor )) {
         PMIX_STRNLEN(msglen, ptr, len);
         if (msglen < len) {
             cred = ptr;

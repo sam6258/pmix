@@ -157,6 +157,8 @@ typedef struct pmix_ptl_module_t pmix_ptl_module_t;
 
 extern pmix_status_t pmix_ptl_base_connect_to_peer(struct pmix_peer_t* peer,
                                                    pmix_info_t info[], size_t ninfo);
+extern pmix_status_t pmix_ptl_base_connect_to_peer_scott(struct pmix_peer_t* peer,
+                                                   pmix_info_t info[], size_t ninfo);
 
 
 /****    COMPONENT STRUCTURE DEFINITION    ****/

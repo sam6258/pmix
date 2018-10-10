@@ -220,15 +220,18 @@ PMIX_EXPORT int PMIx_tool_init(pmix_proc_t *proc,
      * a "client" of the PMIx server and should connect that way */
     if (NULL != getenv("PMIX_NAMESPACE")) {
         PMIX_RELEASE_THREAD(&pmix_global_lock);
-        return PMIx_Init(proc, info, ninfo);
+	rc = PMIx_Init(proc, info, ninfo);
+	pmix_output(0,"pmix: init called returning %d at line %d", rc, __LINE__);
+        return rc;
     }
 
     /* setup the runtime - this init's the globals,
      * opens and initializes the required frameworks */
-    if (PMIX_SUCCESS != (rc = pmix_rte_init(PMIX_PROC_TOOL, info, ninfo,
+    if (PMIX_SUCCESS != (rc = pmix_rte_init_server(PMIX_PROC_TOOL, info, ninfo,
                                             pmix_tool_notify_recv))) {
         PMIX_ERROR_LOG(rc);
         PMIX_RELEASE_THREAD(&pmix_global_lock);
+	pmix_output(0,"pmix: init called returning %d at line %d", rc, __LINE__);
         return rc;
     }
 
@@ -316,6 +319,7 @@ PMIX_EXPORT int PMIx_tool_init(pmix_proc_t *proc,
         rc = pmix_ptl_base_connect_to_peer((struct pmix_peer_t*)pmix_client_globals.myserver, info, ninfo);
         if (PMIX_SUCCESS != rc){
             PMIX_RELEASE_THREAD(&pmix_global_lock);
+	    pmix_output(0,"pmix: init called returning %d at line %d", rc, __LINE__);
             return rc;
         }
     }
@@ -356,6 +360,7 @@ PMIX_EXPORT int PMIx_tool_init(pmix_proc_t *proc,
     if (PMIX_SUCCESS != rc) {
         PMIX_ERROR_LOG(rc);
         PMIX_RELEASE_THREAD(&pmix_global_lock);
+	pmix_output(0,"pmix: init called returning %d at line %d", rc, __LINE__);
         return rc;
     }
     PMIX_RELEASE(kptr); // maintain accounting
@@ -372,6 +377,7 @@ PMIX_EXPORT int PMIx_tool_init(pmix_proc_t *proc,
     if (PMIX_SUCCESS != rc) {
         PMIX_ERROR_LOG(rc);
         PMIX_RELEASE_THREAD(&pmix_global_lock);
+	pmix_output(0,"pmix: init called returning %d at line %d", rc, __LINE__);
         return rc;
     }
     PMIX_RELEASE(kptr); // maintain accounting
@@ -388,6 +394,7 @@ PMIX_EXPORT int PMIx_tool_init(pmix_proc_t *proc,
     if (PMIX_SUCCESS != rc) {
         PMIX_ERROR_LOG(rc);
         PMIX_RELEASE_THREAD(&pmix_global_lock);
+	pmix_output(0,"pmix: init called returning %d at line %d", rc, __LINE__);
         return rc;
     }
     PMIX_RELEASE(kptr); // maintain accounting
@@ -404,6 +411,7 @@ PMIX_EXPORT int PMIx_tool_init(pmix_proc_t *proc,
     if (PMIX_SUCCESS != rc) {
         PMIX_ERROR_LOG(rc);
         PMIX_RELEASE_THREAD(&pmix_global_lock);
+	pmix_output(0,"pmix: init called returning %d at line %d", rc, __LINE__);
         return rc;
     }
     PMIX_RELEASE(kptr); // maintain accounting
@@ -420,6 +428,7 @@ PMIX_EXPORT int PMIx_tool_init(pmix_proc_t *proc,
     if (PMIX_SUCCESS != rc) {
         PMIX_ERROR_LOG(rc);
         PMIX_RELEASE_THREAD(&pmix_global_lock);
+	pmix_output(0,"pmix: init called returning %d at line %d", rc, __LINE__);
         return rc;
     }
     PMIX_RELEASE(kptr); // maintain accounting
@@ -436,6 +445,7 @@ PMIX_EXPORT int PMIx_tool_init(pmix_proc_t *proc,
     if (PMIX_SUCCESS != rc) {
         PMIX_ERROR_LOG(rc);
         PMIX_RELEASE_THREAD(&pmix_global_lock);
+	pmix_output(0,"pmix: init called returning %d at line %d", rc, __LINE__);
         return rc;
     }
     PMIX_RELEASE(kptr); // maintain accounting
@@ -452,6 +462,7 @@ PMIX_EXPORT int PMIx_tool_init(pmix_proc_t *proc,
     if (PMIX_SUCCESS != rc) {
         PMIX_ERROR_LOG(rc);
         PMIX_RELEASE_THREAD(&pmix_global_lock);
+	pmix_output(0,"pmix: init called returning %d at line %d", rc, __LINE__);
         return rc;
     }
     PMIX_RELEASE(kptr); // maintain accounting
@@ -468,6 +479,7 @@ PMIX_EXPORT int PMIx_tool_init(pmix_proc_t *proc,
     if (PMIX_SUCCESS != rc) {
         PMIX_ERROR_LOG(rc);
         PMIX_RELEASE_THREAD(&pmix_global_lock);
+	pmix_output(0,"pmix: init called returning %d at line %d", rc, __LINE__);
         return rc;
     }
     PMIX_RELEASE(kptr); // maintain accounting
@@ -484,6 +496,7 @@ PMIX_EXPORT int PMIx_tool_init(pmix_proc_t *proc,
     if (PMIX_SUCCESS != rc) {
         PMIX_ERROR_LOG(rc);
         PMIX_RELEASE_THREAD(&pmix_global_lock);
+	pmix_output(0,"pmix: init called returning %d at line %d", rc, __LINE__);
         return rc;
     }
     PMIX_RELEASE(kptr); // maintain accounting
@@ -501,6 +514,7 @@ PMIX_EXPORT int PMIx_tool_init(pmix_proc_t *proc,
     if (PMIX_SUCCESS != rc) {
         PMIX_ERROR_LOG(rc);
         PMIX_RELEASE_THREAD(&pmix_global_lock);
+	pmix_output(0,"pmix: init called returning %d at line %d", rc, __LINE__);
         return rc;
     }
     PMIX_RELEASE(kptr); // maintain accounting
@@ -517,6 +531,7 @@ PMIX_EXPORT int PMIx_tool_init(pmix_proc_t *proc,
     if (PMIX_SUCCESS != rc) {
         PMIX_ERROR_LOG(rc);
         PMIX_RELEASE_THREAD(&pmix_global_lock);
+	pmix_output(0,"pmix: init called returning %d at line %d", rc, __LINE__);
         return rc;
     }
     PMIX_RELEASE(kptr); // maintain accounting
@@ -533,6 +548,7 @@ PMIX_EXPORT int PMIx_tool_init(pmix_proc_t *proc,
     if (PMIX_SUCCESS != rc) {
         PMIX_ERROR_LOG(rc);
         PMIX_RELEASE_THREAD(&pmix_global_lock);
+	pmix_output(0,"pmix: init called returning %d at line %d", rc, __LINE__);
         return rc;
     }
     PMIX_RELEASE(kptr); // maintain accounting
@@ -549,6 +565,7 @@ PMIX_EXPORT int PMIx_tool_init(pmix_proc_t *proc,
     if (PMIX_SUCCESS != rc) {
         PMIX_ERROR_LOG(rc);
         PMIX_RELEASE_THREAD(&pmix_global_lock);
+	pmix_output(0,"pmix: init called returning %d at line %d", rc, __LINE__);
         return rc;
     }
     PMIX_RELEASE(kptr); // maintain accounting
@@ -565,6 +582,7 @@ PMIX_EXPORT int PMIx_tool_init(pmix_proc_t *proc,
     if (PMIX_SUCCESS != rc) {
         PMIX_ERROR_LOG(rc);
         PMIX_RELEASE_THREAD(&pmix_global_lock);
+	pmix_output(0,"pmix: init called returning %d at line %d", rc, __LINE__);
         return rc;
     }
     PMIX_RELEASE(kptr); // maintain accounting
@@ -581,6 +599,7 @@ PMIX_EXPORT int PMIx_tool_init(pmix_proc_t *proc,
     if (PMIX_SUCCESS != rc) {
         PMIX_ERROR_LOG(rc);
         PMIX_RELEASE_THREAD(&pmix_global_lock);
+	pmix_output(0,"pmix: init called returning %d at line %d", rc, __LINE__);
         return rc;
     }
     PMIX_RELEASE(kptr); // maintain accounting
@@ -603,6 +622,7 @@ PMIX_EXPORT int PMIx_tool_init(pmix_proc_t *proc,
      if (PMIX_SUCCESS != rc) {
         PMIX_ERROR_LOG(rc);
         PMIX_RELEASE_THREAD(&pmix_global_lock);
+	pmix_output(0,"pmix: init called returning %d at line %d", rc, __LINE__);
         return rc;
     }
     PMIX_RELEASE(kptr); // maintain accounting
@@ -624,6 +644,7 @@ PMIX_EXPORT int PMIx_tool_init(pmix_proc_t *proc,
      if (PMIX_SUCCESS != rc) {
         PMIX_ERROR_LOG(rc);
         PMIX_RELEASE_THREAD(&pmix_global_lock);
+	pmix_output(0,"pmix: init called returning %d at line %d", rc, __LINE__);
         return rc;
     }
     PMIX_RELEASE(kptr); // maintain accounting
@@ -641,11 +662,13 @@ PMIX_EXPORT int PMIx_tool_init(pmix_proc_t *proc,
     if (PMIX_SUCCESS != rc) {
         PMIX_ERROR_LOG(rc);
         PMIX_RELEASE_THREAD(&pmix_global_lock);
+	pmix_output(0,"pmix: init called returning %d at line %d", rc, __LINE__);
         return rc;
     }
     PMIX_RELEASE(kptr); // maintain accounting
 
     PMIX_RELEASE_THREAD(&pmix_global_lock);
+    pmix_output(0,"pmix: init called returning %d at line %d", rc, __LINE__);
     return rc;
 }
 
