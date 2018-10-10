@@ -3,6 +3,7 @@
  * Copyright (c) 2016-2017 Mellanox Technologies, Inc.
  *                         All rights reserved.
  * Copyright (c) 2016-2018 Intel, Inc.  All rights reserved.
+ * Copyright (c) 2018      IBM Corporation.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -240,10 +241,13 @@ typedef pmix_status_t (*pmix_gds_base_module_store_fn_t)(const pmix_proc_t *proc
  *
  * bo - pointer to the byte object containing the data
  *
+ * holding_ns_lock - 'true' if we are holding the 'lock' for the 'ns'
+ *
  */
 typedef pmix_status_t (*pmix_gds_base_module_store_modex_fn_t)(struct pmix_namespace_t *ns,
                                                                pmix_list_t *cbs,
-                                                               pmix_byte_object_t *bo);
+                                                               pmix_byte_object_t *bo,
+                                                               bool holding_ns_lock);
 
 /**
  * define a convenience macro for storing modex byte objects
@@ -256,13 +260,55 @@ typedef pmix_status_t (*pmix_gds_base_module_store_modex_fn_t)(struct pmix_names
  *     of the local_cbs of the collective tracker
  *
  * b - pointer to pmix_byte_object_t containing the data
+ *
+ * x - 'true' if we are holding the 'lock' for the 'ns'
  */
-#define PMIX_GDS_STORE_MODEX(r, n, l, b)  \
+#define PMIX_GDS_STORE_MODEX(r, n, l, b, x)                                 \
     do {                                                                    \
         pmix_output_verbose(1, pmix_gds_base_output,                        \
                             "[%s:%d] GDS STORE MODEX WITH %s",              \
                             __FILE__, __LINE__, (n)->compat.gds->name);     \
-        (r) = (n)->compat.gds->store_modex((struct pmix_namespace_t*)n, l, b); \
+        (r) = (n)->compat.gds->store_modex((struct pmix_namespace_t*)n, l, b, x); \
+    } while (0)
+
+/**
+ * Lock the GDS associated with this namespace. This is used when bulk loading
+ * information into the GDS, for example from a full modex, to avoid locking
+ * overheads.
+ *
+ * @param ns  namespace to lock down
+ *
+ * @return PMIX_SUCCESS on success.
+ */
+typedef pmix_status_t (*pmix_gds_base_module_acquire_ns_lock_fn_t)(struct pmix_namespace_t *ns);
+ 
+/**
+ * Unlock the GDS associated with this namespace. This is used when bulk loading
+ * information into the GDS, for example from a full modex, to avoid locking
+ * overheads.
+ *
+ * @param ns  namespace to unlock
+ *
+ * @return PMIX_SUCCESS on success.
+ */
+typedef pmix_status_t (*pmix_gds_base_module_release_ns_lock_fn_t)(struct pmix_namespace_t *ns);
+ 
+#define PMIX_GDS_ACQUIRE_NS_LOCK(r, n)                                  \
+    do {                                                                \
+        if( NULL != (n)->compat.gds->acquire_ns_lock ) {                \
+            (r) = (n)->compat.gds->acquire_ns_lock((struct pmix_namespace_t*)n); \
+        } else {                                                        \
+            (r) = PMIX_ERR_NOT_SUPPORTED;                               \
+        }                                                               \
+    } while (0)
+
+#define PMIX_GDS_RELEASE_NS_LOCK(r, n)                                  \
+    do {                                                                \
+        if( NULL != (n)->compat.gds->release_ns_lock ) {                \
+            (r) = (n)->compat.gds->release_ns_lock((struct pmix_namespace_t*)n); \
+        } else {                                                        \
+            (r) = PMIX_ERR_NOT_SUPPORTED;                               \
+        }                                                               \
     } while (0)
 
 /**
@@ -418,6 +464,8 @@ typedef struct {
     pmix_gds_base_module_del_nspace_fn_t            del_nspace;
     pmix_gds_base_module_assemb_kvs_req_fn_t        assemb_kvs_req;
     pmix_gds_base_module_accept_kvs_resp_fn_t       accept_kvs_resp;
+    pmix_gds_base_module_acquire_ns_lock_fn_t       acquire_ns_lock;
+    pmix_gds_base_module_release_ns_lock_fn_t       release_ns_lock;
 
 } pmix_gds_base_module_t;
 

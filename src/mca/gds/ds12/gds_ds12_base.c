@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2015-2018 Intel, Inc. All rights reserved.
- * Copyright (c) 2016      IBM Corporation.  All rights reserved.
+ * Copyright (c) 2016-2018 IBM Corporation.  All rights reserved.
  * Copyright (c) 2016-2018 Mellanox Technologies, Inc.
  *                         All rights reserved.
  * Copyright (c) 2018      Research Organization for Information Science
@@ -99,7 +99,7 @@ static pmix_status_t ds12_store(const pmix_proc_t *proc,
                                     pmix_scope_t scope,
                                     pmix_kval_t *kv)
 {
-    return pmix_common_dstor_store(ds12_ctx, proc, scope, kv);
+    return pmix_common_dstor_store(ds12_ctx, proc, scope, kv, false);
 }
 
 /* this function is only called by the PMIx server when its
@@ -108,9 +108,20 @@ static pmix_status_t ds12_store(const pmix_proc_t *proc,
  * shall store it accordingly */
 static pmix_status_t ds12_store_modex(struct pmix_namespace_t *nspace,
                                       pmix_list_t *cbs,
-                                      pmix_byte_object_t *bo)
+                                      pmix_byte_object_t *bo,
+                                      bool holding_ns_lock)
 {
-    return pmix_common_dstor_store_modex(ds12_ctx, nspace, cbs, bo);
+    return pmix_common_dstor_store_modex(ds12_ctx, nspace, cbs, bo, holding_ns_lock);
+}
+
+static pmix_status_t ds12_acquire_ns_lock(struct pmix_namespace_t *nspace)
+{
+    return pmix_common_dstor_acquire_ns_lock(ds12_ctx, nspace);
+}
+
+static pmix_status_t ds12_release_ns_lock(struct pmix_namespace_t *nspace)
+{
+    return pmix_common_dstor_release_ns_lock(ds12_ctx, nspace);
 }
 
 static pmix_status_t ds12_fetch(const pmix_proc_t *proc,
@@ -153,5 +164,7 @@ pmix_gds_base_module_t pmix_ds12_module = {
     .setup_fork = ds12_setup_fork,
     .add_nspace = ds12_add_nspace,
     .del_nspace = ds12_del_nspace,
+    .acquire_ns_lock = ds12_acquire_ns_lock,
+    .release_ns_lock = ds12_release_ns_lock,
 };
 
