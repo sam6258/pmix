@@ -2288,7 +2288,7 @@ static void _mdxcbfunc(int sd, short argc, void *cbdata)
              * right away - but the client still has to be notified
              * of its presence. */
             PMIX_LIST_FOREACH(nptr, &nslist, pmix_nspace_caddy_t) {
-                PMIX_GDS_STORE_MODEX(rc, nptr->ns, &tracker->local_cbs, &bo2, holding_ns_locks);
+                PMIX_GDS_STORE_MODEX(rc, nptr->ns, &tracker->local_cbs, &bo2);
                 if (PMIX_SUCCESS != rc) {
                     PMIX_ERROR_LOG(rc);
                     break;

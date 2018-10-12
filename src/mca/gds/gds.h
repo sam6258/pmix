@@ -241,13 +241,10 @@ typedef pmix_status_t (*pmix_gds_base_module_store_fn_t)(const pmix_proc_t *proc
  *
  * bo - pointer to the byte object containing the data
  *
- * holding_ns_lock - 'true' if we are holding the 'lock' for the 'ns'
- *
  */
 typedef pmix_status_t (*pmix_gds_base_module_store_modex_fn_t)(struct pmix_namespace_t *ns,
                                                                pmix_list_t *cbs,
-                                                               pmix_byte_object_t *bo,
-                                                               bool holding_ns_lock);
+                                                               pmix_byte_object_t *bo);
 
 /**
  * define a convenience macro for storing modex byte objects
@@ -263,12 +260,12 @@ typedef pmix_status_t (*pmix_gds_base_module_store_modex_fn_t)(struct pmix_names
  *
  * x - 'true' if we are holding the 'lock' for the 'ns'
  */
-#define PMIX_GDS_STORE_MODEX(r, n, l, b, x)                                 \
+#define PMIX_GDS_STORE_MODEX(r, n, l, b)                                    \
     do {                                                                    \
         pmix_output_verbose(1, pmix_gds_base_output,                        \
                             "[%s:%d] GDS STORE MODEX WITH %s",              \
                             __FILE__, __LINE__, (n)->compat.gds->name);     \
-        (r) = (n)->compat.gds->store_modex((struct pmix_namespace_t*)n, l, b, x); \
+        (r) = (n)->compat.gds->store_modex((struct pmix_namespace_t*)n, l, b); \
     } while (0)
 
 /**

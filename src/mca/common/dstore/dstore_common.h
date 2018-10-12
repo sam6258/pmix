@@ -64,8 +64,7 @@ PMIX_EXPORT pmix_status_t pmix_common_dstor_store_job_info(pmix_common_dstore_ct
 PMIX_EXPORT pmix_status_t pmix_common_dstor_store(pmix_common_dstore_ctx_t *ds_ctx,
                                 const pmix_proc_t *proc,
                                 pmix_scope_t scope,
-                                pmix_kval_t *kv,
-                                bool holding_ns_lock);
+                                pmix_kval_t *kv);
 PMIX_EXPORT pmix_status_t pmix_common_dstor_fetch(pmix_common_dstore_ctx_t *ds_ctx,
                                 const pmix_proc_t *proc,
                                 pmix_scope_t scope, bool copy,
@@ -75,8 +74,7 @@ PMIX_EXPORT pmix_status_t pmix_common_dstor_fetch(pmix_common_dstore_ctx_t *ds_c
 PMIX_EXPORT pmix_status_t pmix_common_dstor_store_modex(pmix_common_dstore_ctx_t *ds_ctx,
                                 struct pmix_namespace_t *nspace,
                                 pmix_list_t *cbs,
-                                pmix_byte_object_t *bo,
-                                bool holding_ns_lock);
+                                pmix_byte_object_t *bo);
 PMIX_EXPORT pmix_status_t pmix_common_dstor_acquire_ns_lock(pmix_common_dstore_ctx_t *ds_ctx,
                                                             struct pmix_namespace_t *nspace);
 PMIX_EXPORT pmix_status_t pmix_common_dstor_release_ns_lock(pmix_common_dstore_ctx_t *ds_ctx,

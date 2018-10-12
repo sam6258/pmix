@@ -96,7 +96,7 @@ static pmix_status_t ds21_store(const pmix_proc_t *proc,
                                     pmix_scope_t scope,
                                     pmix_kval_t *kv)
 {
-    return pmix_common_dstor_store(ds21_ctx, proc, scope, kv, false);
+    return pmix_common_dstor_store(ds21_ctx, proc, scope, kv);
 }
 
 /* this function is only called by the PMIx server when its
@@ -105,10 +105,9 @@ static pmix_status_t ds21_store(const pmix_proc_t *proc,
  * shall store it accordingly */
 static pmix_status_t ds21_store_modex(struct pmix_namespace_t *nspace,
                                       pmix_list_t *cbs,
-                                      pmix_byte_object_t *bo,
-                                      bool holding_ns_lock)
+                                      pmix_byte_object_t *bo)
 {
-    return pmix_common_dstor_store_modex(ds21_ctx, nspace, cbs, bo, holding_ns_lock);
+    return pmix_common_dstor_store_modex(ds21_ctx, nspace, cbs, bo);
 }
 
 static pmix_status_t ds21_acquire_ns_lock(struct pmix_namespace_t *nspace)

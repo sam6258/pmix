@@ -325,6 +325,12 @@ static inline pmix_peer_t * _client_peer(pmix_common_dstore_ctx_t *ds_ctx);
 
 static inline int _my_client(const char *nspace, pmix_rank_t rank);
 
+static pmix_status_t _acquire_ns_lock_by_name(pmix_common_dstore_ctx_t *ds_ctx,
+                                              const char *nspace);
+
+static pmix_status_t _release_ns_lock_by_name(pmix_common_dstore_ctx_t *ds_ctx,
+                                              const char *nspace);
+
 static pmix_status_t _dstore_store_nolock(pmix_common_dstore_ctx_t *ds_ctx,
                                    ns_map_data_t *ns_map,
                                    pmix_rank_t rank,
@@ -662,6 +668,7 @@ static inline int _esh_session_tbl_add(pmix_common_dstore_ctx_t *ds_ctx, size_t 
 
     for(idx = 0; idx < size; idx ++) {
         if (0 == s_tbl[idx].in_use) {
+            s_tbl[idx].active_locks = 0;
             goto done;
         }
     }
@@ -1998,8 +2005,7 @@ exit:
 PMIX_EXPORT pmix_status_t pmix_common_dstor_store(pmix_common_dstore_ctx_t *ds_ctx,
                                 const pmix_proc_t *proc,
                                 pmix_scope_t scope,
-                                pmix_kval_t *kv,
-                                bool holding_ns_lock)
+                                pmix_kval_t *kv)
 {
     pmix_status_t rc = PMIX_SUCCESS;
     ns_map_data_t *ns_map;
@@ -2032,12 +2038,10 @@ PMIX_EXPORT pmix_status_t pmix_common_dstor_store(pmix_common_dstore_ctx_t *ds_c
     }
 
     /* set exclusive lock */
-    if( !holding_ns_lock ) {
-        rc = _ESH_LOCK(ds_ctx, ns_map->tbl_idx, wr_lock);
-        if (PMIX_SUCCESS != rc) {
-            PMIX_ERROR_LOG(rc);
-            goto exit;
-        }
+    rc = _acquire_ns_lock_by_name(ds_ctx, proc->nspace);
+    if (PMIX_SUCCESS != rc) {
+        PMIX_ERROR_LOG(rc);
+        goto exit;
     }
 
     rc = _dstore_store_nolock(ds_ctx, ns_map, proc->rank, kv2);
@@ -2047,12 +2051,10 @@ PMIX_EXPORT pmix_status_t pmix_common_dstor_store(pmix_common_dstore_ctx_t *ds_c
     }
 
     /* unset lock */
-    if( !holding_ns_lock ) {
-        rc = _ESH_LOCK(ds_ctx, ns_map->tbl_idx, wr_unlock);
-        if (PMIX_SUCCESS != rc) {
-            PMIX_ERROR_LOG(rc);
-            goto exit;
-        }
+    rc = _release_ns_lock_by_name(ds_ctx, proc->nspace);
+    if (PMIX_SUCCESS != rc) {
+        PMIX_ERROR_LOG(rc);
+        goto exit;
     }
 
 exit:
@@ -2630,48 +2632,87 @@ static inline int _my_client(const char *nspace, pmix_rank_t rank)
     return local;
 }
 
-PMIX_EXPORT pmix_status_t pmix_common_dstor_acquire_ns_lock(pmix_common_dstore_ctx_t *ds_ctx,
-                                                            struct pmix_namespace_t *nspace)
+static pmix_status_t _acquire_ns_lock_by_name(pmix_common_dstore_ctx_t *ds_ctx,
+                                              const char *nspace)
 {
     pmix_status_t rc = PMIX_SUCCESS;
-    pmix_namespace_t *ns = (pmix_namespace_t*)nspace;
     ns_map_data_t *ns_map;
+    session_t *s_tbl;
 
-    if (NULL == (ns_map = ds_ctx->session_map_search(ds_ctx, ns->nspace))) {
+    if (NULL == (ns_map = ds_ctx->session_map_search(ds_ctx, nspace))) {
         rc = PMIX_ERROR;
         PMIX_ERROR_LOG(rc);
         return rc;
     }
 
-    rc = _ESH_LOCK(ds_ctx, ns_map->tbl_idx, wr_lock);
-    if (PMIX_SUCCESS != rc) {
-        PMIX_ERROR_LOG(rc);
-        return rc;
+    s_tbl = PMIX_VALUE_ARRAY_GET_BASE(ds_ctx->session_array, session_t);
+
+    if (0 == s_tbl[ns_map->tbl_idx].active_locks) {
+        rc = _ESH_LOCK(ds_ctx, ns_map->tbl_idx, wr_lock);
+        if (PMIX_SUCCESS != rc) {
+            PMIX_ERROR_LOG(rc);
+            return rc;
+        }
     }
+
+    /*
+     * Maintain a reference count instead of a boolean 
+     * so we hang if someone misses an unlock.
+     */
+    s_tbl[ns_map->tbl_idx].active_locks++;
 
     return PMIX_SUCCESS;
 }
+                                            
 
-PMIX_EXPORT pmix_status_t pmix_common_dstor_release_ns_lock(pmix_common_dstore_ctx_t *ds_ctx,
+PMIX_EXPORT pmix_status_t pmix_common_dstor_acquire_ns_lock(pmix_common_dstore_ctx_t *ds_ctx,
                                                             struct pmix_namespace_t *nspace)
 {
-    pmix_status_t rc = PMIX_SUCCESS;
     pmix_namespace_t *ns = (pmix_namespace_t*)nspace;
-    ns_map_data_t *ns_map;
 
-    if (NULL == (ns_map = ds_ctx->session_map_search(ds_ctx, ns->nspace))) {
+    return _acquire_ns_lock_by_name(ds_ctx, ns->nspace);
+}
+
+static pmix_status_t _release_ns_lock_by_name(pmix_common_dstore_ctx_t *ds_ctx,
+                                              const char *nspace)
+{
+    pmix_status_t rc = PMIX_SUCCESS;
+    ns_map_data_t *ns_map;
+    session_t *s_tbl;
+
+    if (NULL == (ns_map = ds_ctx->session_map_search(ds_ctx, nspace))) {
         rc = PMIX_ERROR;
         PMIX_ERROR_LOG(rc);
         return rc;
     }
 
-    rc = _ESH_LOCK(ds_ctx, ns_map->tbl_idx, wr_unlock);
-    if (PMIX_SUCCESS != rc) {
+    s_tbl = PMIX_VALUE_ARRAY_GET_BASE(ds_ctx->session_array, session_t);
+    s_tbl[ns_map->tbl_idx].active_locks--;
+
+    if (0 == s_tbl[ns_map->tbl_idx].active_locks) {
+        rc = _ESH_LOCK(ds_ctx, ns_map->tbl_idx, wr_unlock);
+        if (PMIX_SUCCESS != rc) {
+            s_tbl[ns_map->tbl_idx].active_locks++;
+            PMIX_ERROR_LOG(rc);
+            return rc;
+        }
+    }
+    else if (0 > s_tbl[ns_map->tbl_idx].active_locks) {
+        s_tbl[ns_map->tbl_idx].active_locks++;
+        rc = PMIX_ERROR;
         PMIX_ERROR_LOG(rc);
         return rc;
     }
 
     return PMIX_SUCCESS;
+
+}
+PMIX_EXPORT pmix_status_t pmix_common_dstor_release_ns_lock(pmix_common_dstore_ctx_t *ds_ctx,
+                                                            struct pmix_namespace_t *nspace)
+{
+    pmix_namespace_t *ns = (pmix_namespace_t*)nspace;
+
+    return _release_ns_lock_by_name(ds_ctx, ns->nspace);
 }
 
 /* this function is only called by the PMIx server when its
@@ -2681,8 +2722,7 @@ PMIX_EXPORT pmix_status_t pmix_common_dstor_release_ns_lock(pmix_common_dstore_c
 PMIX_EXPORT pmix_status_t pmix_common_dstor_store_modex(pmix_common_dstore_ctx_t *ds_ctx,
                                 struct pmix_namespace_t *nspace,
                                 pmix_list_t *cbs,
-                                pmix_byte_object_t *bo,
-                                bool holding_ns_lock)
+                                pmix_byte_object_t *bo)
 {
     pmix_namespace_t *ns = (pmix_namespace_t*)nspace;
     pmix_status_t rc = PMIX_SUCCESS;
@@ -2690,7 +2730,6 @@ PMIX_EXPORT pmix_status_t pmix_common_dstor_store_modex(pmix_common_dstore_ctx_t
     pmix_buffer_t pbkt;
     pmix_proc_t proc;
     pmix_kval_t *kv;
-    ns_map_data_t *ns_map;
 
     pmix_output_verbose(2, pmix_gds_base_framework.framework_output,
                         "[%s:%d] gds:dstore:store_modex for nspace %s",
@@ -2732,18 +2771,10 @@ PMIX_EXPORT pmix_status_t pmix_common_dstor_store_modex(pmix_common_dstore_ctx_t
         return PMIX_SUCCESS;
     }
 
-    if( !holding_ns_lock ) {
-        if (NULL == (ns_map = ds_ctx->session_map_search(ds_ctx, proc.nspace))) {
-            rc = PMIX_ERROR;
-            PMIX_ERROR_LOG(rc);
-            return rc;
-        }
-
-        rc = _ESH_LOCK(ds_ctx, ns_map->tbl_idx, wr_lock);
-        if (PMIX_SUCCESS != rc) {
-            PMIX_ERROR_LOG(rc);
-            return rc;
-        }
+    rc = _acquire_ns_lock_by_name(ds_ctx, proc.nspace);
+    if (PMIX_SUCCESS != rc) {
+        PMIX_ERROR_LOG(rc);
+        return rc;
     }
 
     /* unpack the remaining values until we hit the end of the buffer */
@@ -2762,7 +2793,7 @@ PMIX_EXPORT pmix_status_t pmix_common_dstor_store_modex(pmix_common_dstore_ctx_t
             return rc;
         }
 
-        if (PMIX_SUCCESS != (rc = pmix_common_dstor_store(ds_ctx, &proc, PMIX_REMOTE, kv, true))) {
+        if (PMIX_SUCCESS != (rc = pmix_common_dstor_store(ds_ctx, &proc, PMIX_REMOTE, kv))) {
             PMIX_ERROR_LOG(rc);
         }
         PMIX_RELEASE(kv);  // maintain accounting as the hash increments the ref count
@@ -2783,12 +2814,10 @@ PMIX_EXPORT pmix_status_t pmix_common_dstor_store_modex(pmix_common_dstore_ctx_t
     pbkt.base_ptr = NULL;
     PMIX_DESTRUCT(&pbkt);
 
-    if( !holding_ns_lock ) {
-        rc = _ESH_LOCK(ds_ctx, ns_map->tbl_idx, wr_unlock);
-        if (PMIX_SUCCESS != rc) {
-            PMIX_ERROR_LOG(rc);
-            return rc;
-        }
+    rc = _release_ns_lock_by_name(ds_ctx, proc.nspace);
+    if (PMIX_SUCCESS != rc) {
+        PMIX_ERROR_LOG(rc);
+        return rc;
     }
 
     return rc;

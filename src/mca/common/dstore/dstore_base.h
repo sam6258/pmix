@@ -79,6 +79,7 @@ struct session_s {
     pmix_dstore_seg_desc_t *sm_seg_first;
     pmix_dstore_seg_desc_t *sm_seg_last;   
     pmix_common_dstor_lock_ctx_t lock;
+    int active_locks;
 };
 
 struct ns_map_data_s {

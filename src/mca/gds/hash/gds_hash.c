@@ -66,8 +66,7 @@ static pmix_status_t hash_store(const pmix_proc_t *proc,
 
 static pmix_status_t hash_store_modex(struct pmix_namespace_t *ns,
                                       pmix_list_t *cbs,
-                                      pmix_byte_object_t *bo,
-                                      bool holding_ns_lock);
+                                      pmix_byte_object_t *bo);
 
 static pmix_status_t hash_fetch(const pmix_proc_t *proc,
                                 pmix_scope_t scope, bool copy,
@@ -1186,8 +1185,7 @@ static pmix_status_t hash_store(const pmix_proc_t *proc,
  * shall store it accordingly */
 static pmix_status_t hash_store_modex(struct pmix_namespace_t *nspace,
                                       pmix_list_t *cbs,
-                                      pmix_byte_object_t *bo,
-                                      bool holding_ns_lock)
+                                      pmix_byte_object_t *bo)
 {
     pmix_namespace_t *ns = (pmix_namespace_t*)nspace;
     pmix_hash_trkr_t *trk, *t;
