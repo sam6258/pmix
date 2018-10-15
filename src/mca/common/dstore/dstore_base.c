@@ -2127,13 +2127,15 @@ static pmix_status_t _dstore_fetch(pmix_common_dstore_ctx_t *ds_ctx,
         cur_rank = rank;
     }
 
-    /* grab shared lock */
-    lock_rc = _ESH_LOCK(ds_ctx, ns_map->tbl_idx, rd_lock);
-    if (PMIX_SUCCESS != lock_rc) {
-        /* Something wrong with the lock. The error is fatal */
-        rc = PMIX_ERR_FATAL;
-        PMIX_ERROR_LOG(lock_rc);
-        return lock_rc;
+    if (PMIX_RANK_UNDEF != rank && PMIX_RANK_WILDCARD != rank) {
+	    /* grab shared lock */
+	    lock_rc = _ESH_LOCK(ds_ctx, ns_map->tbl_idx, rd_lock);
+	    if (PMIX_SUCCESS != lock_rc) {
+		    /* Something wrong with the lock. The error is fatal */
+		    rc = PMIX_ERR_FATAL;
+		    PMIX_ERROR_LOG(lock_rc);
+		    return lock_rc;
+	    }
     }
 
     /* First of all, we go through all initial segments and look at their field.
@@ -2350,10 +2352,13 @@ static pmix_status_t _dstore_fetch(pmix_common_dstore_ctx_t *ds_ctx,
     }
 
 done:
-    /* unset lock */
-    lock_rc = _ESH_LOCK(ds_ctx, ns_map->tbl_idx, rd_unlock);
-    if (PMIX_SUCCESS != lock_rc) {
-        PMIX_ERROR_LOG(lock_rc);
+
+    if (PMIX_RANK_UNDEF != rank && PMIX_RANK_WILDCARD != rank) {
+	    /* unset lock */
+	    lock_rc = _ESH_LOCK(ds_ctx, ns_map->tbl_idx, rd_unlock);
+	    if (PMIX_SUCCESS != lock_rc) {
+		    PMIX_ERROR_LOG(lock_rc);
+	    }
     }
 
     if( rc != PMIX_SUCCESS ){
@@ -2927,13 +2932,6 @@ PMIX_EXPORT pmix_status_t pmix_common_dstor_register_job_info(pmix_common_dstore
             return rc;
         }
 
-        /* set exclusive lock */
-        rc = _ESH_LOCK(ds_ctx, ns_map->tbl_idx, wr_lock);
-        if (PMIX_SUCCESS != rc) {
-            PMIX_ERROR_LOG(rc);
-            return rc;
-        }
-
         rc = _store_job_info(ds_ctx, ns_map, &proc);
         if (PMIX_SUCCESS != rc) {
             PMIX_ERROR_LOG(rc);
@@ -2947,12 +2945,6 @@ PMIX_EXPORT pmix_status_t pmix_common_dstor_register_job_info(pmix_common_dstore
                 PMIX_ERROR_LOG(rc);
                 return rc;
             }
-        }
-        /* unset lock */
-        rc = _ESH_LOCK(ds_ctx, ns_map->tbl_idx, wr_unlock);
-        if (PMIX_SUCCESS != rc) {
-            PMIX_ERROR_LOG(rc);
-            return rc;
         }
     }
 
