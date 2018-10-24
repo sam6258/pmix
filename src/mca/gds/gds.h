@@ -244,7 +244,7 @@ typedef pmix_status_t (*pmix_gds_base_module_store_fn_t)(const pmix_proc_t *proc
  */
 typedef pmix_status_t (*pmix_gds_base_module_store_modex_fn_t)(struct pmix_namespace_t *ns,
                                                                pmix_list_t *cbs,
-                                                               pmix_byte_object_t *bo);
+                                                               pmix_buffer_t *buff);
 
 /**
  * define a convenience macro for storing modex byte objects

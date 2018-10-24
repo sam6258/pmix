@@ -108,9 +108,9 @@ static pmix_status_t ds12_store(const pmix_proc_t *proc,
  * shall store it accordingly */
 static pmix_status_t ds12_store_modex(struct pmix_namespace_t *nspace,
                                       pmix_list_t *cbs,
-                                      pmix_byte_object_t *bo)
+                                      pmix_buffer_t *buf)
 {
-    return pmix_common_dstor_store_modex(ds12_ctx, nspace, cbs, bo);
+    return pmix_gds_base_store_modex(nspace, cbs, buf, pmix_common_dstor_store_modex, ds12_ctx);
 }
 
 static pmix_status_t ds12_acquire_ns_lock(struct pmix_namespace_t *nspace)
